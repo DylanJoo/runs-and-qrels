@@ -106,8 +106,10 @@ def load_rating(rating_path):
                 if qid is not None:
                     rating[qid] = ratings
                 else:
+                    print(f"  Warning: Line {line_num}: Missing 'qid' field")
                     skipped += 1
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                print(f"  Warning: Line {line_num}: Invalid JSON - {e}")
                 skipped += 1
     
     if skipped > 0:
@@ -124,7 +126,8 @@ def calculate_metrics(run, qrel, metrics, rating=None):
         run: Dictionary of retrieval results
         qrel: Dictionary of ground truth relevance
         metrics: List of metric names to calculate
-        rating: Optional dictionary of nugget-level ratings
+        rating: Optional dictionary of nugget-level ratings (currently unused,
+                reserved for future implementation of nugget-based evaluation)
     
     Returns:
         dict: Metric scores

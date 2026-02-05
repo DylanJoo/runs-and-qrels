@@ -48,7 +48,7 @@ jobs:
           # Find all run files and evaluate those with matching qrels
           for run_file in runs/*.txt; do
             # Skip .gitkeep files
-            [[ "$run_file" == *".gitkeep"* ]] && continue
+            [[ "$(basename "$run_file")" == ".gitkeep" ]] && continue
             
             # Extract the run name pattern
             # Run files are named: run.<benchmark>.<model>.<dataset>.txt
@@ -81,7 +81,7 @@ jobs:
             if [[ ${#PARTS[@]} -ge 3 ]]; then
               benchmark="${PARTS[0]}"
               model="${PARTS[1]}"
-              # Dataset can have dots, so join remaining parts
+              # Dataset can have dots, so join remaining parts (using subshell to avoid IFS side effects)
               dataset=$(IFS='.'; echo "${PARTS[*]:2}")
               
               # Look for matching qrel file: qrel.<benchmark>.<dataset>.txt

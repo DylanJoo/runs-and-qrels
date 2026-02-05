@@ -41,7 +41,7 @@ def parse_result_filename(filename):
         return benchmark, model, dataset
     elif len(parts) == 2:
         # Fallback: assume benchmark.dataset (legacy format)
-        return parts[0], "unknown", parts[1]
+        return parts[0], "legacy", parts[1]
     else:
         return None, None, stem
 

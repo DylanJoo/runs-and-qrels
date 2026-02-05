@@ -1,0 +1,4 @@
+# This directory stores retrieval results (runs)
+# 
+# Each run file should follow the TREC run format:
+# <query_id> Q0 <doc_id> <rank> <score> <run_name>

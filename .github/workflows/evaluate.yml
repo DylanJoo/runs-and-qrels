@@ -1,0 +1,55 @@
+name: Automatic Evaluation
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'runs/**'
+      - 'qrels/**'
+      - 'scripts/evaluate.py'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'runs/**'
+      - 'qrels/**'
+      - 'scripts/evaluate.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install ir-measures
+
+      - name: Run evaluation on example files
+        run: |
+          python scripts/evaluate.py \
+            --run runs/example_run.txt \
+            --qrel qrels/example_qrel.txt \
+            --metrics "nDCG@10,AP,R@1000,P@10,RR" \
+            --output_json results/example_results.json
+
+      - name: Generate RESULTS.md
+        run: python scripts/generate_results.py
+
+      - name: Commit updated results
+        if: github.event_name == 'push'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add results/ RESULTS.md
+          git diff --staged --quiet || git commit -m "Update evaluation results [skip ci]"
+          git push

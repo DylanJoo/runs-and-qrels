@@ -12,6 +12,28 @@ scripts/    # Evaluation utilities
 results/    # Evaluation results (JSON)
 ```
 
+## File Naming Convention
+
+For automatic evaluation and result grouping, use the following naming patterns:
+
+**Run files**: `run.<benchmark>.<model>.<dataset>.txt`
+```
+run.beir.bm25.arguana.txt
+run.msmarco-passage.contriever.trec-dl-2019.txt
+```
+
+**Qrel files**: `qrel.<benchmark>.<dataset>.txt`
+```
+qrel.beir.arguana.txt
+qrel.msmarco-passage.trec-dl-2019.txt
+```
+
+**Result files**: `<benchmark>.<model>.<dataset>_results.json` (auto-generated)
+```
+beir.bm25.arguana_results.json
+msmarco-passage.contriever.trec-dl-2019_results.json
+```
+
 ## Examples
 
 **Run** (`runs/example_run.txt`):
@@ -54,10 +76,13 @@ python scripts/generate_results.py
 
 This repository includes a GitHub Actions workflow that automatically evaluates runs when changes are pushed. The workflow:
 
-1. Triggers on pushes to `main`/`master` branches when run, qrel, or evaluation files change
-2. Installs `ir-measures` and runs evaluation on available run/qrel pairs
-3. Updates `RESULTS.md` with the latest metric results
+1. Triggers on pushes to `main`/`master` branches when run, qrel, rating, or evaluation files change
+2. Installs `ir-measures` and runs evaluation on all run/qrel pairs
+3. Updates `RESULTS.md` with the latest metric results grouped by benchmark
 4. Commits the updated results back to the repository
+
+The workflow automatically matches run files with qrel files based on the naming convention:
+- `run.<benchmark>.<model>.<dataset>.txt` → `qrel.<benchmark>.<dataset>.txt`
 
 See [RESULTS.md](RESULTS.md) for the latest evaluation metrics.
 

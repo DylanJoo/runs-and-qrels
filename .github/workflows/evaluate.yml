@@ -6,13 +6,17 @@ on:
     paths:
       - 'runs/**'
       - 'qrels/**'
+      - 'ratings/**'
       - 'scripts/evaluate.py'
+      - 'scripts/generate_results.py'
   pull_request:
     branches: [ main, master ]
     paths:
       - 'runs/**'
       - 'qrels/**'
+      - 'ratings/**'
       - 'scripts/evaluate.py'
+      - 'scripts/generate_results.py'
   workflow_dispatch:
 
 permissions:
@@ -25,6 +29,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -34,13 +40,70 @@ jobs:
       - name: Install dependencies
         run: pip install ir-measures
 
-      - name: Run evaluation on example files
+      - name: Run evaluation on all run/qrel pairs
         run: |
-          python scripts/evaluate.py \
-            --run runs/example_run.txt \
-            --qrel qrels/example_qrel.txt \
-            --metrics "nDCG@10,AP,R@1000,P@10,RR" \
-            --output_json results/example_results.json
+          # Define the metrics to evaluate
+          METRICS="nDCG@10,nDCG@20,AP,RR,R@100,R@1000,P@10,P@20"
+          
+          # Find all run files and evaluate those with matching qrels
+          for run_file in runs/*.txt; do
+            # Skip .gitkeep files
+            [[ "$(basename "$run_file")" == ".gitkeep" ]] && continue
+            
+            # Extract the run name pattern
+            # Run files are named: run.<benchmark>.<model>.<dataset>.txt
+            # Qrel files are named: qrel.<benchmark>.<dataset>.txt
+            
+            run_basename=$(basename "$run_file" .txt)
+            
+            # Handle example files (legacy format)
+            if [[ "$run_basename" == "example_run" ]]; then
+              qrel_file="qrels/example_qrel.txt"
+              if [[ -f "$qrel_file" ]]; then
+                echo "Evaluating: $run_file with $qrel_file"
+                output_name="example"
+                python scripts/evaluate.py \
+                  --run "$run_file" \
+                  --qrel "$qrel_file" \
+                  --metrics "$METRICS" \
+                  --output_json "results/${output_name}_results.json" || true
+              fi
+              continue
+            fi
+            
+            # Parse run filename: run.<benchmark>.<model>.<dataset>.txt
+            # Remove 'run.' prefix
+            run_parts=${run_basename#run.}
+            
+            # Split by dots to get benchmark, model, dataset
+            IFS='.' read -ra PARTS <<< "$run_parts"
+            
+            if [[ ${#PARTS[@]} -ge 3 ]]; then
+              benchmark="${PARTS[0]}"
+              model="${PARTS[1]}"
+              # Dataset can have dots, so join remaining parts (using subshell to avoid IFS side effects)
+              dataset=$(IFS='.'; echo "${PARTS[*]:2}")
+              
+              # Look for matching qrel file: qrel.<benchmark>.<dataset>.txt
+              qrel_file="qrels/qrel.${benchmark}.${dataset}.txt"
+              
+              if [[ -f "$qrel_file" ]]; then
+                echo "Evaluating: $run_file with $qrel_file"
+                output_name="${benchmark}.${model}.${dataset}"
+                python scripts/evaluate.py \
+                  --run "$run_file" \
+                  --qrel "$qrel_file" \
+                  --metrics "$METRICS" \
+                  --output_json "results/${output_name}_results.json" || true
+              else
+                echo "Skipping: $run_file (no matching qrel found at $qrel_file)"
+              fi
+            else
+              echo "Skipping: $run_file (unexpected filename format)"
+            fi
+          done
+          
+          echo "Evaluation complete."
 
       - name: Generate RESULTS.md
         run: python scripts/generate_results.py

@@ -7,6 +7,7 @@ A repository for storing and managing information retrieval (IR) results and eva
 This repository provides a structured way to organize:
 - **Runs**: Retrieval results from various IR systems (e.g., BM25, neural retrievers)
 - **Qrels**: Ground truth relevance judgments for evaluation
+- **Ratings**: Nugget-level judgments for fine-grained evaluation (JSONL format)
 - **Scripts**: Utilities for evaluating, validating, and converting IR data
 
 ## Repository Structure
@@ -16,6 +17,8 @@ runs-and-qrels/
 ├── runs/              # Retrieval results in TREC format
 │   └── .gitkeep
 ├── qrels/             # Ground truth relevance judgments
+│   └── .gitkeep
+├── ratings/           # Nugget-level judgments in JSONL format
 │   └── .gitkeep
 ├── scripts/           # Evaluation and utility scripts
 │   ├── evaluate.py    # Evaluate runs against qrels
@@ -70,11 +73,30 @@ Relevance judgments should be stored in the standard TREC qrel format:
 - `doc_id`: Document identifier
 - `relevance`: Relevance label (typically 0=non-relevant, 1+=relevant)
 
+### Rating Format (JSONL)
+
+Nugget-level judgments should be stored in JSONL (JSON Lines) format, with one JSON object per line:
+
+```json
+{"qid": "<query_id>", "ratings": {"<doc_id>": [<score1>, <score2>, ...], ...}}
+```
+
+**Example:**
+```json
+{"qid": "1", "ratings": {"doc123": [0, 0, 2, 3, 3], "doc456": [1, 2, 4, 5, 2]}}
+{"qid": "2", "ratings": {"doc234": [1, 1, 1, 2], "doc567": [2, 3, 4, 4, 5]}}
+```
+
+**Fields:**
+- `qid`: Query identifier
+- `ratings`: Dictionary mapping document IDs to lists of nugget-level scores
+  - Each document ID maps to an array of scores representing judgments for individual nuggets
+
 ## Usage
 
-### Storing Runs and Qrels
+### Storing Runs, Qrels, and Ratings
 
-Place your retrieval results and qrels in their respective directories:
+Place your retrieval results, qrels, and ratings in their respective directories:
 
 ```bash
 # Add a run file
@@ -82,6 +104,9 @@ cp my_retrieval_results.txt runs/bm25_baseline.txt
 
 # Add a qrel file
 cp my_ground_truth.txt qrels/test_set.txt
+
+# Add a rating file (JSONL format)
+cp my_nugget_ratings.jsonl ratings/test_ratings.jsonl
 ```
 
 ### Evaluating Runs
@@ -97,6 +122,12 @@ python scripts/evaluate.py \
     --run runs/bm25_baseline.txt \
     --qrel qrels/test_set.txt \
     --metrics ndcg_cut_10,map,recall_1000
+
+# Evaluation with nugget-level ratings
+python scripts/evaluate.py \
+    --run runs/bm25_baseline.txt \
+    --qrel qrels/test_set.txt \
+    --rating_jsonl ratings/test_ratings.jsonl
 
 # Save results to file
 python scripts/evaluate.py \

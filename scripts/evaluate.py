@@ -3,15 +3,18 @@
 Evaluation Script for Retrieval Results
 
 This script evaluates retrieval runs against qrels (ground truth) using standard IR metrics.
+Optionally, nugget-level ratings can be provided for more fine-grained evaluation.
 
 Usage:
-    python evaluate.py --run <run_file> --qrel <qrel_file> [--metrics <metrics>]
+    python evaluate.py --run <run_file> --qrel <qrel_file> [--rating_jsonl <rating_file>] [--metrics <metrics>]
 
 Example:
     python evaluate.py --run runs/my_run.txt --qrel qrels/my_qrel.txt --metrics ndcg_cut_10,map,recall_1000
+    python evaluate.py --run runs/my_run.txt --qrel qrels/my_qrel.txt --rating_jsonl ratings/my_rating.jsonl
 """
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -76,7 +79,46 @@ def load_qrel(qrel_path):
     return qrel
 
 
-def calculate_metrics(run, qrel, metrics):
+def load_rating(rating_path):
+    """
+    Load a rating file in JSONL format containing nugget-level judgments.
+    
+    Format: {"qid": "query_id", "ratings": {"docid": [score1, score2, ...], ...}}
+    
+    Each line is a JSON object with:
+    - qid: Query identifier
+    - ratings: Dictionary mapping document IDs to lists of nugget-level scores
+    
+    Returns:
+        dict: {query_id: {doc_id: [score1, score2, ...]}}
+    """
+    rating = {}
+    skipped = 0
+    with open(rating_path, 'r') as f:
+        for line_num, line in enumerate(f, 1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+                qid = data.get('qid')
+                ratings = data.get('ratings', {})
+                if qid is not None:
+                    rating[qid] = ratings
+                else:
+                    print(f"  Warning: Line {line_num}: Missing 'qid' field")
+                    skipped += 1
+            except json.JSONDecodeError as e:
+                print(f"  Warning: Line {line_num}: Invalid JSON - {e}")
+                skipped += 1
+    
+    if skipped > 0:
+        print(f"  Warning: Skipped {skipped} invalid lines")
+    
+    return rating
+
+
+def calculate_metrics(run, qrel, metrics, rating=None):
     """
     Calculate evaluation metrics.
     
@@ -84,6 +126,8 @@ def calculate_metrics(run, qrel, metrics):
         run: Dictionary of retrieval results
         qrel: Dictionary of ground truth relevance
         metrics: List of metric names to calculate
+        rating: Optional dictionary of nugget-level ratings (currently unused,
+                reserved for future implementation of nugget-based evaluation)
     
     Returns:
         dict: Metric scores
@@ -113,6 +157,7 @@ def main():
 Examples:
   python evaluate.py --run runs/bm25.txt --qrel qrels/dev.txt
   python evaluate.py --run runs/bm25.txt --qrel qrels/dev.txt --metrics ndcg_cut_10,map,recall_1000
+  python evaluate.py --run runs/bm25.txt --qrel qrels/dev.txt --rating_jsonl ratings/my_rating.jsonl
   
 Metrics:
   Common metrics include: map, ndcg_cut_10, ndcg_cut_20, recall_1000, P_10, P_20
@@ -122,6 +167,7 @@ Metrics:
     
     parser.add_argument('--run', required=True, help='Path to run file (TREC format)')
     parser.add_argument('--qrel', required=True, help='Path to qrel file (TREC format)')
+    parser.add_argument('--rating_jsonl', help='Path to rating file (JSONL format with nugget-level judgments)')
     parser.add_argument('--metrics', default='ndcg_cut_10,map,recall_1000',
                         help='Comma-separated list of metrics to calculate')
     parser.add_argument('--output', help='Output file for results (default: stdout)')
@@ -140,6 +186,13 @@ Metrics:
         print(f"Error: Qrel file not found: {args.qrel}", file=sys.stderr)
         sys.exit(1)
     
+    rating_path = None
+    if args.rating_jsonl:
+        rating_path = Path(args.rating_jsonl)
+        if not rating_path.exists():
+            print(f"Error: Rating file not found: {args.rating_jsonl}", file=sys.stderr)
+            sys.exit(1)
+    
     # Parse metrics
     metric_list = [m.strip() for m in args.metrics.split(',')]
     
@@ -152,9 +205,16 @@ Metrics:
     qrel = load_qrel(qrel_path)
     print(f"  Loaded {len(qrel)} queries")
     
+    # Load optional rating file
+    rating = None
+    if rating_path:
+        print(f"Loading rating: {args.rating_jsonl}")
+        rating = load_rating(rating_path)
+        print(f"  Loaded {len(rating)} queries")
+    
     # Calculate metrics
     print(f"\nCalculating metrics: {', '.join(metric_list)}")
-    results = calculate_metrics(run, qrel, metric_list)
+    results = calculate_metrics(run, qrel, metric_list, rating)
     
     # Output results
     output_lines = []

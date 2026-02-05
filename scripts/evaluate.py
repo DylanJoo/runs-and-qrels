@@ -26,15 +26,20 @@ def load_run(run_path):
         dict: {query_id: [(doc_id, score), ...]}
     """
     run = {}
+    skipped = 0
     with open(run_path, 'r') as f:
         for line in f:
             parts = line.strip().split()
             if len(parts) < 6:
+                skipped += 1
                 continue
             query_id, _, doc_id, rank, score, _ = parts
             if query_id not in run:
                 run[query_id] = []
             run[query_id].append((doc_id, float(score)))
+    
+    if skipped > 0:
+        print(f"  Warning: Skipped {skipped} invalid lines")
     
     # Sort by score descending
     for query_id in run:
@@ -53,15 +58,20 @@ def load_qrel(qrel_path):
         dict: {query_id: {doc_id: relevance}}
     """
     qrel = {}
+    skipped = 0
     with open(qrel_path, 'r') as f:
         for line in f:
             parts = line.strip().split()
             if len(parts) < 4:
+                skipped += 1
                 continue
             query_id, _, doc_id, relevance = parts
             if query_id not in qrel:
                 qrel[query_id] = {}
             qrel[query_id][doc_id] = int(relevance)
+    
+    if skipped > 0:
+        print(f"  Warning: Skipped {skipped} invalid lines")
     
     return qrel
 

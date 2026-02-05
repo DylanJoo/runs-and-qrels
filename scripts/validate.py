@@ -54,8 +54,8 @@ def validate_run(filepath):
             # Validate rank is integer
             try:
                 rank_int = int(rank)
-                if rank_int < 0:
-                    errors.append(f"Line {line_num}: Rank should be non-negative, found {rank_int}")
+                if rank_int < 1:
+                    errors.append(f"Line {line_num}: Rank should be positive (1-based), found {rank_int}")
             except ValueError:
                 errors.append(f"Line {line_num}: Rank should be an integer, found '{rank}'")
             

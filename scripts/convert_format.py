@@ -20,10 +20,12 @@ from pathlib import Path
 def read_trec_run(filepath):
     """Read TREC format run file."""
     run = {}
+    skipped = 0
     with open(filepath, 'r') as f:
         for line in f:
             parts = line.strip().split()
             if len(parts) < 6:
+                skipped += 1
                 continue
             query_id, _, doc_id, rank, score, run_name = parts
             if query_id not in run:
@@ -34,21 +36,27 @@ def read_trec_run(filepath):
                 'score': float(score),
                 'run_name': run_name
             })
+    if skipped > 0:
+        print(f"Warning: Skipped {skipped} invalid lines")
     return run
 
 
 def read_trec_qrel(filepath):
     """Read TREC format qrel file."""
     qrel = {}
+    skipped = 0
     with open(filepath, 'r') as f:
         for line in f:
             parts = line.strip().split()
             if len(parts) < 4:
+                skipped += 1
                 continue
             query_id, _, doc_id, relevance = parts
             if query_id not in qrel:
                 qrel[query_id] = {}
             qrel[query_id][doc_id] = int(relevance)
+    if skipped > 0:
+        print(f"Warning: Skipped {skipped} invalid lines")
     return qrel
 
 

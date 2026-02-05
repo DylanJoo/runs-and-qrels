@@ -1,0 +1,4 @@
+# This directory stores evaluation ground truth (qrels)
+# 
+# Each qrel file should follow the TREC qrel format:
+# <query_id> 0 <doc_id> <relevance>

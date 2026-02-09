@@ -9,6 +9,29 @@ runs/       # TREC run files
 qrels/      # TREC qrel files  
 ratings/    # Nugget-level ratings (JSONL)
 scripts/    # Evaluation utilities
+results/    # Evaluation results (JSON)
+```
+
+## File Naming Convention
+
+For automatic evaluation and result grouping, use the following naming patterns:
+
+**Run files**: `run.<benchmark>.<model>.<dataset>.txt`
+```
+run.beir.bm25.arguana.txt
+run.msmarco-passage.contriever.trec-dl-2019.txt
+```
+
+**Qrel files**: `qrel.<benchmark>.<dataset>.txt`
+```
+qrel.beir.arguana.txt
+qrel.msmarco-passage.trec-dl-2019.txt
+```
+
+**Result files**: `<benchmark>.<model>.<dataset>_results.json` (auto-generated)
+```
+beir.bm25.arguana_results.json
+msmarco-passage.contriever.trec-dl-2019_results.json
 ```
 
 ## Examples
@@ -36,15 +59,32 @@ scripts/    # Evaluation utilities
 ## Usage
 
 ```bash
-# Evaluate
-python scripts/evaluate.py --run runs/example_run.txt --qrel qrels/example_qrel.txt
+# Evaluate (requires ir-measures: pip install ir-measures)
+python scripts/evaluate.py --run runs/example_run.txt --qrel qrels/example_qrel.txt --metrics "nDCG@10,AP,R@1000"
 
 # Validate
 python scripts/validate.py --input runs/example_run.txt --type run
 
 # Convert formats
 python scripts/convert_format.py --input runs/example_run.txt --output runs/example.json --format json --type run
+
+# Generate RESULTS.md from JSON results
+python scripts/generate_results.py
 ```
+
+## Automatic Evaluation
+
+This repository includes a GitHub Actions workflow that automatically evaluates runs when changes are pushed. The workflow:
+
+1. Triggers on pushes to `main`/`master` branches when run, qrel, rating, or evaluation files change
+2. Installs `ir-measures` and runs evaluation on all run/qrel pairs
+3. Updates `RESULTS.md` with the latest metric results grouped by benchmark
+4. Commits the updated results back to the repository
+
+The workflow automatically matches run files with qrel files based on the naming convention:
+- `run.<benchmark>.<model>.<dataset>.txt` → `qrel.<benchmark>.<dataset>.txt`
+
+See [RESULTS.md](RESULTS.md) for the latest evaluation metrics.
 
 ## Resources
 

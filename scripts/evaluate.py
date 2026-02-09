@@ -2,14 +2,14 @@
 """
 Evaluation Script for Retrieval Results
 
-This script evaluates retrieval runs against qrels (ground truth) using standard IR metrics.
+This script evaluates retrieval runs against qrels (ground truth) using ir-measures.
 Optionally, nugget-level ratings can be provided for more fine-grained evaluation.
 
 Usage:
     python evaluate.py --run <run_file> --qrel <qrel_file> [--rating_jsonl <rating_file>] [--metrics <metrics>]
 
 Example:
-    python evaluate.py --run runs/my_run.txt --qrel qrels/my_qrel.txt --metrics ndcg_cut_10,map,recall_1000
+    python evaluate.py --run runs/my_run.txt --qrel qrels/my_qrel.txt --metrics nDCG@10,AP,R@1000
     python evaluate.py --run runs/my_run.txt --qrel qrels/my_qrel.txt --rating_jsonl ratings/my_rating.jsonl
 """
 
@@ -17,6 +17,13 @@ import argparse
 import json
 import sys
 from pathlib import Path
+
+try:
+    import ir_measures
+    from ir_measures import parse_measure
+    IR_MEASURES_AVAILABLE = True
+except ImportError:
+    IR_MEASURES_AVAILABLE = False
 
 
 def load_run(run_path):
@@ -118,9 +125,47 @@ def load_rating(rating_path):
     return rating
 
 
+def calculate_metrics_with_ir_measures(run_path, qrel_path, metrics):
+    """
+    Calculate evaluation metrics using ir-measures library.
+    
+    Args:
+        run_path: Path to run file
+        qrel_path: Path to qrel file
+        metrics: List of metric names to calculate
+    
+    Returns:
+        dict: Metric scores (aggregated means)
+    """
+    # Parse metrics
+    parsed_metrics = []
+    for metric in metrics:
+        try:
+            parsed_metrics.append(parse_measure(metric))
+        except Exception as e:
+            print(f"  Warning: Could not parse metric '{metric}': {e}. "
+                  f"See https://ir-measur.es/ for valid metric formats (e.g., nDCG@10, AP, P@10, RR).")
+    
+    if not parsed_metrics:
+        print("Error: No valid metrics to calculate. "
+              "Please specify valid ir-measures metrics (e.g., nDCG@10, AP, P@10, RR). "
+              "See https://ir-measur.es/ for documentation.", file=sys.stderr)
+        return {}
+    
+    # Load run and qrel using ir-measures
+    qrels = ir_measures.read_trec_qrels(str(qrel_path))
+    run = ir_measures.read_trec_run(str(run_path))
+    
+    # Calculate metrics
+    results = ir_measures.calc_aggregate(parsed_metrics, qrels, run)
+    
+    # Convert to simple dict with string keys
+    return {str(k): v for k, v in results.items()}
+
+
 def calculate_metrics(run, qrel, metrics, rating=None):
     """
-    Calculate evaluation metrics.
+    Calculate evaluation metrics (fallback without ir-measures).
     
     Args:
         run: Dictionary of retrieval results
@@ -132,45 +177,42 @@ def calculate_metrics(run, qrel, metrics, rating=None):
     Returns:
         dict: Metric scores
     """
-    # Placeholder implementation
-    # TODO: Implement actual metric calculations or integrate with pytrec_eval
-    
     results = {}
     
-    print("Note: This is a placeholder implementation.")
-    print("Consider using pytrec_eval for accurate metric calculations:")
-    print("  pip install pytrec_eval")
+    print("Note: ir-measures not installed. Install with: pip install ir-measures")
     
-    # Example placeholder calculations
+    # Placeholder for metrics
     for metric in metrics:
         results[metric] = 0.0
-        print(f"  {metric}: Not yet implemented")
+        print(f"  {metric}: Not calculated (ir-measures not available)")
     
     return results
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Evaluate retrieval runs against qrels',
+        description='Evaluate retrieval runs against qrels using ir-measures',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python evaluate.py --run runs/bm25.txt --qrel qrels/dev.txt
-  python evaluate.py --run runs/bm25.txt --qrel qrels/dev.txt --metrics ndcg_cut_10,map,recall_1000
+  python evaluate.py --run runs/bm25.txt --qrel qrels/dev.txt --metrics nDCG@10,AP,R@1000
   python evaluate.py --run runs/bm25.txt --qrel qrels/dev.txt --rating_jsonl ratings/my_rating.jsonl
   
-Metrics:
-  Common metrics include: map, ndcg_cut_10, ndcg_cut_20, recall_1000, P_10, P_20
+Metrics (ir-measures format):
+  Common metrics include: AP, nDCG@10, nDCG@20, R@1000, P@10, P@20, RR
   Multiple metrics can be specified as comma-separated values.
+  See https://ir-measur.es/ for full list of supported metrics.
         """
     )
     
     parser.add_argument('--run', required=True, help='Path to run file (TREC format)')
     parser.add_argument('--qrel', required=True, help='Path to qrel file (TREC format)')
     parser.add_argument('--rating_jsonl', help='Path to rating file (JSONL format with nugget-level judgments)')
-    parser.add_argument('--metrics', default='ndcg_cut_10,map,recall_1000',
-                        help='Comma-separated list of metrics to calculate')
+    parser.add_argument('--metrics', default='nDCG@10,AP,R@1000',
+                        help='Comma-separated list of metrics to calculate (ir-measures format)')
     parser.add_argument('--output', help='Output file for results (default: stdout)')
+    parser.add_argument('--output_json', help='Output file for results in JSON format')
     
     args = parser.parse_args()
     
@@ -196,14 +238,8 @@ Metrics:
     # Parse metrics
     metric_list = [m.strip() for m in args.metrics.split(',')]
     
-    # Load data
     print(f"Loading run: {args.run}")
-    run = load_run(run_path)
-    print(f"  Loaded {len(run)} queries")
-    
     print(f"Loading qrel: {args.qrel}")
-    qrel = load_qrel(qrel_path)
-    print(f"  Loaded {len(qrel)} queries")
     
     # Load optional rating file
     rating = None
@@ -214,7 +250,13 @@ Metrics:
     
     # Calculate metrics
     print(f"\nCalculating metrics: {', '.join(metric_list)}")
-    results = calculate_metrics(run, qrel, metric_list, rating)
+    
+    if IR_MEASURES_AVAILABLE:
+        results = calculate_metrics_with_ir_measures(run_path, qrel_path, metric_list)
+    else:
+        run = load_run(run_path)
+        qrel = load_qrel(qrel_path)
+        results = calculate_metrics(run, qrel, metric_list, rating)
     
     # Output results
     output_lines = []
@@ -231,6 +273,12 @@ Metrics:
         print(f"\nResults written to: {args.output}")
     else:
         print(output_text)
+    
+    # Output JSON if requested
+    if args.output_json:
+        with open(args.output_json, 'w') as f:
+            json.dump(results, f, indent=2)
+        print(f"JSON results written to: {args.output_json}")
 
 
 if __name__ == '__main__':

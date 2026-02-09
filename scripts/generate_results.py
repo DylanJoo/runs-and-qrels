@@ -123,79 +123,23 @@ def generate_benchmark_table(benchmark_data, metrics_order, selected_metrics=Non
         # Format: Dataset | Model1 | Model2 | Model3 | ...
         # One table per metric
         
-        # When specific metrics are selected, show them directly without categorization
-        if selected_metrics:
-            # Just display all selected metrics as simple tables
-            for metric in display_metrics:
-                lines.append(f"**{metric}**")
-                lines.append("")
-                header = "| Dataset | " + " | ".join(models) + " |"
-                separator = "|:---|" + "|".join([":---:" for _ in models]) + "|"
-                lines.append(header)
-                lines.append(separator)
-                
-                for dataset in datasets:
-                    row_parts = [dataset]
-                    for model in models:
-                        model_data = benchmark_data[dataset].get(model, {})
-                        score = model_data.get(metric)
-                        row_parts.append(format_score(score))
-                    lines.append("| " + " | ".join(row_parts) + " |")
-                lines.append("")
-        else:
-            # Default behavior: Key metrics shown prominently, others in expandable section
-            # Select key metrics for the main table (nDCG@10, RR, R@1000 are common)
-            key_metrics = ["nDCG@10", "AP", "RR"]
-            key_metrics = [m for m in key_metrics if m in display_metrics]
+        # Display each metric as a separate table with models as columns
+        for metric in display_metrics:
+            lines.append(f"**{metric}**")
+            lines.append("")
+            header = "| Dataset | " + " | ".join(models) + " |"
+            separator = "|:---|" + "|".join([":---:" for _ in models]) + "|"
+            lines.append(header)
+            lines.append(separator)
             
-            if key_metrics:
-                lines.append("### Key Metrics")
-                lines.append("")
-                
-                for metric in key_metrics:
-                    lines.append(f"**{metric}**")
-                    lines.append("")
-                    header = "| Dataset | " + " | ".join(models) + " |"
-                    separator = "|:---|" + "|".join([":---:" for _ in models]) + "|"
-                    lines.append(header)
-                    lines.append(separator)
-                    
-                    for dataset in datasets:
-                        row_parts = [dataset]
-                        for model in models:
-                            model_data = benchmark_data[dataset].get(model, {})
-                            score = model_data.get(metric)
-                            row_parts.append(format_score(score))
-                        lines.append("| " + " | ".join(row_parts) + " |")
-                    lines.append("")
-            
-            # Full details in expandable section
-            other_metrics = [m for m in display_metrics if m not in key_metrics]
-            
-            if other_metrics:
-                lines.append("<details>")
-                lines.append("<summary>All Metrics (click to expand)</summary>")
-                lines.append("")
-                
-                for metric in other_metrics:
-                    lines.append(f"**{metric}**")
-                    lines.append("")
-                    header = "| Dataset | " + " | ".join(models) + " |"
-                    separator = "|:---|" + "|".join([":---:" for _ in models]) + "|"
-                    lines.append(header)
-                    lines.append(separator)
-                    
-                    for dataset in datasets:
-                        row_parts = [dataset]
-                        for model in models:
-                            model_data = benchmark_data[dataset].get(model, {})
-                            score = model_data.get(metric)
-                            row_parts.append(format_score(score))
-                        lines.append("| " + " | ".join(row_parts) + " |")
-                    lines.append("")
-                
-                lines.append("</details>")
-                lines.append("")
+            for dataset in datasets:
+                row_parts = [dataset]
+                for model in models:
+                    model_data = benchmark_data[dataset].get(model, {})
+                    score = model_data.get(metric)
+                    row_parts.append(format_score(score))
+                lines.append("| " + " | ".join(row_parts) + " |")
+            lines.append("")
     
     return lines
 

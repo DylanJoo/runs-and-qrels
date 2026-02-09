@@ -10,17 +10,18 @@ logger = logging.getLogger(__name__)
 def save_qrel(benchmark: str, dataset_name: str, path: Optional[str] = None):
 
     dataset = ir_datasets.load(f"{benchmark}/{dataset_name}")
-    qrels = {}
 
-    n = 0
+    njudge = 0
+    nqueries = set()
     dataset_name = dataset_name.split("/")[0]
-    for qrel in dataset.qrels_iter():
-        with open(os.path.join(path, f"qrels.beir.{dataset_name}.txt"), "w") as f:
+    with open(os.path.join(path, f"qrels.beir.{dataset_name}.txt"), "w") as f:
+        for qrel in dataset.qrels_iter():
             f.write(f"{qrel.query_id} 0 {qrel.doc_id} {qrel.relevance}\n")
-        n += 1
+            njudge += 1
+            nqueries.add(qrel.query_id)
 
-    logger.info(f"Loaded {n} qrels for dataset {dataset_name}")
-    return qrels
+    print(f"{dataset_name} | {njudge} | {njudge / len(nqueries)}")
+    return 0
 
 DATASETS=[
     "arguana",

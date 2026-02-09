@@ -14,8 +14,11 @@ For example:
 
 Usage:
     python scripts/generate_results.py
+    python scripts/generate_results.py --metrics nDCG@10
+    python scripts/generate_results.py --metrics "nDCG@10,R@100"
 """
 
+import argparse
 import json
 from collections import defaultdict
 from pathlib import Path
@@ -53,7 +56,7 @@ def format_score(score):
     return f"{score:.4f}"
 
 
-def generate_benchmark_table(benchmark_data, metrics_order):
+def generate_benchmark_table(benchmark_data, metrics_order, selected_metrics=None):
     """
     Generate markdown tables for a benchmark.
     
@@ -62,7 +65,8 @@ def generate_benchmark_table(benchmark_data, metrics_order):
     
     Args:
         benchmark_data: dict of {dataset: {model: {metric: score}}}
-        metrics_order: list of metrics to display
+        metrics_order: list of metrics to display in preferred order
+        selected_metrics: optional list of specific metrics to include (filters output)
     
     Returns:
         list of markdown lines
@@ -89,6 +93,13 @@ def generate_benchmark_table(benchmark_data, metrics_order):
     if not display_metrics:
         display_metrics = sorted(available_metrics)
     
+    # If specific metrics are selected, filter to only those that are available
+    if selected_metrics:
+        display_metrics = [m for m in selected_metrics if m in available_metrics]
+    
+    if not display_metrics:
+        return ["No matching metrics found.", ""]
+    
     datasets = sorted(benchmark_data.keys())
     
     if len(models) == 1:
@@ -110,18 +121,12 @@ def generate_benchmark_table(benchmark_data, metrics_order):
     else:
         # Multiple models: create a table with models as columns
         # Format: Dataset | Model1 | Model2 | Model3 | ...
-        # One table per primary metric, or combined for readability
+        # One table per metric
         
-        # Option 1: Combined table with key metrics only
-        # Select key metrics for the main table (nDCG@10, RR, R@1000 are common)
-        key_metrics = ["nDCG@10", "AP", "RR"]
-        key_metrics = [m for m in key_metrics if m in display_metrics]
-        
-        if key_metrics:
-            lines.append("### Key Metrics")
-            lines.append("")
-            
-            for metric in key_metrics:
+        # When specific metrics are selected, show them directly without categorization
+        if selected_metrics:
+            # Just display all selected metrics as simple tables
+            for metric in display_metrics:
                 lines.append(f"**{metric}**")
                 lines.append("")
                 header = "| Dataset | " + " | ".join(models) + " |"
@@ -137,41 +142,91 @@ def generate_benchmark_table(benchmark_data, metrics_order):
                         row_parts.append(format_score(score))
                     lines.append("| " + " | ".join(row_parts) + " |")
                 lines.append("")
-        
-        # Option 2: Full details in expandable section
-        other_metrics = [m for m in display_metrics if m not in key_metrics]
-        
-        if other_metrics:
-            lines.append("<details>")
-            lines.append("<summary>All Metrics (click to expand)</summary>")
-            lines.append("")
+        else:
+            # Default behavior: Key metrics shown prominently, others in expandable section
+            # Select key metrics for the main table (nDCG@10, RR, R@1000 are common)
+            key_metrics = ["nDCG@10", "AP", "RR"]
+            key_metrics = [m for m in key_metrics if m in display_metrics]
             
-            for metric in other_metrics:
-                lines.append(f"**{metric}**")
+            if key_metrics:
+                lines.append("### Key Metrics")
                 lines.append("")
-                header = "| Dataset | " + " | ".join(models) + " |"
-                separator = "|:---|" + "|".join([":---:" for _ in models]) + "|"
-                lines.append(header)
-                lines.append(separator)
                 
-                for dataset in datasets:
-                    row_parts = [dataset]
-                    for model in models:
-                        model_data = benchmark_data[dataset].get(model, {})
-                        score = model_data.get(metric)
-                        row_parts.append(format_score(score))
-                    lines.append("| " + " | ".join(row_parts) + " |")
-                lines.append("")
+                for metric in key_metrics:
+                    lines.append(f"**{metric}**")
+                    lines.append("")
+                    header = "| Dataset | " + " | ".join(models) + " |"
+                    separator = "|:---|" + "|".join([":---:" for _ in models]) + "|"
+                    lines.append(header)
+                    lines.append(separator)
+                    
+                    for dataset in datasets:
+                        row_parts = [dataset]
+                        for model in models:
+                            model_data = benchmark_data[dataset].get(model, {})
+                            score = model_data.get(metric)
+                            row_parts.append(format_score(score))
+                        lines.append("| " + " | ".join(row_parts) + " |")
+                    lines.append("")
             
-            lines.append("</details>")
-            lines.append("")
+            # Full details in expandable section
+            other_metrics = [m for m in display_metrics if m not in key_metrics]
+            
+            if other_metrics:
+                lines.append("<details>")
+                lines.append("<summary>All Metrics (click to expand)</summary>")
+                lines.append("")
+                
+                for metric in other_metrics:
+                    lines.append(f"**{metric}**")
+                    lines.append("")
+                    header = "| Dataset | " + " | ".join(models) + " |"
+                    separator = "|:---|" + "|".join([":---:" for _ in models]) + "|"
+                    lines.append(header)
+                    lines.append(separator)
+                    
+                    for dataset in datasets:
+                        row_parts = [dataset]
+                        for model in models:
+                            model_data = benchmark_data[dataset].get(model, {})
+                            score = model_data.get(metric)
+                            row_parts.append(format_score(score))
+                        lines.append("| " + " | ".join(row_parts) + " |")
+                    lines.append("")
+                
+                lines.append("</details>")
+                lines.append("")
     
     return lines
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description='Generate RESULTS.md from evaluation JSON files.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python scripts/generate_results.py
+  python scripts/generate_results.py --metrics nDCG@10
+  python scripts/generate_results.py --metrics "nDCG@10,R@100"
+  python scripts/generate_results.py --output custom_results.md
+        """
+    )
+    parser.add_argument('--metrics', 
+                        help='Comma-separated list of metrics to include (e.g., nDCG@10 or "nDCG@10,R@100"). '
+                             'If not specified, all available metrics are shown.')
+    parser.add_argument('--output', default='RESULTS.md',
+                        help='Output markdown file path (default: RESULTS.md)')
+    
+    args = parser.parse_args()
+    
+    # Parse selected metrics if provided
+    selected_metrics = None
+    if args.metrics:
+        selected_metrics = [m.strip() for m in args.metrics.split(',')]
+    
     results_dir = Path("results")
-    output_file = Path("RESULTS.md")
+    output_file = Path(args.output)
     
     # Preferred metrics order for display
     metrics_order = ["nDCG@10", "nDCG@20", "AP", "RR", "R@100", "R@1000", "P@10", "P@20"]
@@ -245,7 +300,7 @@ def main():
             lines.append("")
             
             # Generate table
-            table_lines = generate_benchmark_table(benchmark_data, metrics_order)
+            table_lines = generate_benchmark_table(benchmark_data, metrics_order, selected_metrics)
             lines.extend(table_lines)
             
             lines.append("---")

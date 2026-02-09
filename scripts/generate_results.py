@@ -93,12 +93,9 @@ def generate_benchmark_table(benchmark_data, metrics_order, selected_metrics=Non
     if not display_metrics:
         display_metrics = sorted(available_metrics)
     
-    # If specific metrics are selected, filter further
+    # If specific metrics are selected, filter to only those that are available
     if selected_metrics:
-        display_metrics = [m for m in display_metrics if m in selected_metrics]
-        if not display_metrics:
-            # Fall back to available selected metrics
-            display_metrics = [m for m in selected_metrics if m in available_metrics]
+        display_metrics = [m for m in selected_metrics if m in available_metrics]
     
     if not display_metrics:
         return ["No matching metrics found.", ""]

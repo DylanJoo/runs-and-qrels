@@ -91,8 +91,8 @@ jobs:
               fi
             else
               # Handle root-level files (legacy format)
-              # Handle example files (legacy format)
               if [[ "$run_basename" == "example_run" ]]; then
+                # Handle legacy example files
                 qrel_file="qrels/example_qrel.txt"
                 if [[ -f "$qrel_file" ]]; then
                   echo "Evaluating: $run_file with $qrel_file"
@@ -103,38 +103,37 @@ jobs:
                     --metrics "$METRICS" \
                     --output_json "results/${output_name}_results.json" || true
                 fi
-                continue
-              fi
-              
-              # Parse run filename: run.<benchmark>.<model>.<dataset>.txt
-              # Remove 'run.' prefix
-              run_parts=${run_basename#run.}
-              
-              # Split by dots to get benchmark, model, dataset
-              IFS='.' read -ra PARTS <<< "$run_parts"
-              
-              if [[ ${#PARTS[@]} -ge 3 ]]; then
-                benchmark="${PARTS[0]}"
-                model="${PARTS[1]}"
-                # Dataset can have dots, so join remaining parts
-                dataset=$(IFS='.'; echo "${PARTS[*]:2}")
-                
-                # Look for matching qrel file: qrel.<benchmark>.<dataset>.txt (root level)
-                qrel_file="qrels/qrel.${benchmark}.${dataset}.txt"
-                
-                if [[ -f "$qrel_file" ]]; then
-                  echo "Evaluating: $run_file with $qrel_file"
-                  output_name="${benchmark}.${model}.${dataset}"
-                  python scripts/evaluate.py \
-                    --run "$run_file" \
-                    --qrel "$qrel_file" \
-                    --metrics "$METRICS" \
-                    --output_json "results/${output_name}_results.json" || true
-                else
-                  echo "Skipping: $run_file (no matching qrel found at $qrel_file)"
-                fi
               else
-                echo "Skipping: $run_file (unexpected filename format)"
+                # Parse run filename: run.<benchmark>.<model>.<dataset>.txt
+                # Remove 'run.' prefix
+                run_parts=${run_basename#run.}
+                
+                # Split by dots to get benchmark, model, dataset
+                IFS='.' read -ra PARTS <<< "$run_parts"
+                
+                if [[ ${#PARTS[@]} -ge 3 ]]; then
+                  benchmark="${PARTS[0]}"
+                  model="${PARTS[1]}"
+                  # Dataset can have dots, so join remaining parts
+                  dataset=$(IFS='.'; echo "${PARTS[*]:2}")
+                  
+                  # Look for matching qrel file: qrel.<benchmark>.<dataset>.txt (root level)
+                  qrel_file="qrels/qrel.${benchmark}.${dataset}.txt"
+                  
+                  if [[ -f "$qrel_file" ]]; then
+                    echo "Evaluating: $run_file with $qrel_file"
+                    output_name="${benchmark}.${model}.${dataset}"
+                    python scripts/evaluate.py \
+                      --run "$run_file" \
+                      --qrel "$qrel_file" \
+                      --metrics "$METRICS" \
+                      --output_json "results/${output_name}_results.json" || true
+                  else
+                    echo "Skipping: $run_file (no matching qrel found at $qrel_file)"
+                  fi
+                else
+                  echo "Skipping: $run_file (unexpected filename format)"
+                fi
               fi
             fi
           done

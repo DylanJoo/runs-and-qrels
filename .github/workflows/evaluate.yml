@@ -43,7 +43,7 @@ jobs:
       - name: Run evaluation on all run/qrel pairs
         run: |
           # Define the metrics to evaluate
-          METRICS="nDCG@10,nDCG@20,AP,RR,R@100,R@1000,P@10,P@20"
+          METRICS="nDCG@10,R@100,nDCG@20"
           
           # Find all run files recursively (including subdirectories)
           find runs -name '*.txt' -type f | while read -r run_file; do

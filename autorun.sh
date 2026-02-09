@@ -1,12 +1,16 @@
 # Define the metrics to evaluate
-METRICS="nDCG@10"
+METRICS="nDCG@10,R@100"
 
 # Find all run files recursively (including subdirectories)
-find runs -name '*.txt' -type f | while read -r run_file; do
+# Support both .txt and .trec extensions
+find runs \( -name '*.txt' -o -name '*.trec' \) -type f | while read -r run_file; do
 # Skip .gitkeep files
 [[ "$(basename "$run_file")" == ".gitkeep" ]] && continue
 
-run_basename=$(basename "$run_file" .txt)
+# Remove extension (either .txt or .trec)
+run_basename=$(basename "$run_file")
+run_basename="${run_basename%.txt}"
+run_basename="${run_basename%.trec}"
 run_dir=$(dirname "$run_file")
 
 # Check if run is in a subdirectory (e.g., runs/beir/)
@@ -27,13 +31,17 @@ if [[ "$run_dir" != "runs" ]]; then
     # Dataset can have dots, so join remaining parts
     dataset=$(IFS='.'; echo "${PARTS[*]:2}")
     
+    # Normalize dataset name: convert underscores to dashes for qrel matching
+    dataset_normalized="${dataset//_/-}"
+    
     # Look for matching qrel file in the same subdirectory
     # Qrel files are named: qrels.<benchmark>.<dataset>.txt
-    qrel_file="qrels/${subdir}/qrels.${benchmark}.${dataset}.txt"
+    qrel_file="qrels/${subdir}/qrels.${benchmark}.${dataset_normalized}.txt"
     
     if [[ -f "$qrel_file" ]]; then
       echo "Evaluating: $run_file with $qrel_file"
-      output_name="${benchmark}.${model}.${dataset}"
+      # Use normalized dataset name in output for consistency
+      output_name="${benchmark}.${model}.${dataset_normalized}"
       python scripts/evaluate.py \
         --run "$run_file" \
         --qrel "$qrel_file" \

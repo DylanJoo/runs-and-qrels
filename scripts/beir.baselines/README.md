@@ -112,7 +112,6 @@ The scripts are configured to process the following BEIR datasets:
 - **SLURM Array Jobs**: The scripts use array jobs (`--array`) to process multiple datasets in parallel
 - **GPU Resources**: Each job requests 1 NVIDIA RTX A6000 GPU
 - **Memory**: 32GB RAM per job
-- **Time Limit**: 1 day maximum runtime
 
 ## Customization
 

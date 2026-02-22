@@ -6,12 +6,13 @@
 #SBATCH --gres=gpu:nvidia_rtx_a6000:1
 #SBATCH --ntasks-per-node=1        
 #SBATCH --nodes=1                
-#SBATCH --array=0-12%2
-#SBATCH --mem=32G
+#SBATCH --array=11,12
+#SBATCH --mem=40G
 #SBATCH --time=1-00:00:00
 
 # ENV
-source /ivi/ilps/personal/dju/miniconda3/etc/profile.d/conda.sh
+source ${HOME}/.bashrc
+initconda
 conda activate inference
 
 model_dir=nomic-ai/modernbert-embed-base
@@ -41,7 +42,7 @@ for SHARD_ID in 0 1;do
         --output_dir=temp \
         --tokenizer_name answerdotai/ModernBERT-base \
         --model_name_or_path $model_dir \
-        --per_device_eval_batch_size 3840 \
+        --per_device_eval_batch_size 1280 \
         --pooling mean --bf16 --normalize \
         --passage_max_len 512 \
         --passage_prefix "search_document: " \

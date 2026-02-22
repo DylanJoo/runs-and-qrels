@@ -1,0 +1,25 @@
+Could not cache non-existence of file. Will ignore error and continue. Error: [Errno 30] Read-only file system: '/home/dju/.cache/huggingface/hub/datasets--DylanJHJ--beir-corpus/.no_exist/ad9ffbd16d9fa49ac7755999f000f993d7a290d7/beir-corpus.py'
+Could not cache non-existence of file. Will ignore error and continue. Error: [Errno 30] Read-only file system: '/home/dju/.cache/huggingface/hub/datasets--DylanJHJ--beir-corpus/.no_exist/ad9ffbd16d9fa49ac7755999f000f993d7a290d7/.huggingface.yaml'
+Could not cache non-existence of file. Will ignore error and continue. Error: [Errno 30] Read-only file system: '/home/dju/.cache/huggingface/hub/datasets--DylanJHJ--beir-corpus/.no_exist/ad9ffbd16d9fa49ac7755999f000f993d7a290d7/dataset_infos.json'
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/dju/tevatron/src/tevatron/retriever/driver/encode_lsr.py", line 140, in <module>
+    hf_dataset = load_dataset(args.dataset_name, split=args.dataset_split)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dju/miniconda3/envs/inference/lib/python3.11/site-packages/datasets/load.py", line 1397, in load_dataset
+    builder_instance = load_dataset_builder(
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dju/miniconda3/envs/inference/lib/python3.11/site-packages/datasets/load.py", line 1171, in load_dataset_builder
+    builder_instance: DatasetBuilder = builder_cls(
+                                       ^^^^^^^^^^^^
+  File "/home/dju/miniconda3/envs/inference/lib/python3.11/site-packages/datasets/builder.py", line 390, in __init__
+    with FileLock(lock_path):
+  File "/home/dju/miniconda3/envs/inference/lib/python3.11/site-packages/filelock/_api.py", line 376, in __enter__
+    self.acquire()
+  File "/home/dju/miniconda3/envs/inference/lib/python3.11/site-packages/filelock/_api.py", line 332, in acquire
+    self._acquire()
+  File "/home/dju/miniconda3/envs/inference/lib/python3.11/site-packages/filelock/_unix.py", line 44, in _acquire
+    fd = os.open(self.lock_file, open_flags, self._context.mode)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 30] Read-only file system: '/home/dju/.cache/huggingface/datasets/_home_dju_.cache_huggingface_datasets_DylanJHJ___beir-corpus_default_0.0.0_ad9ffbd16d9fa49ac7755999f000f993d7a290d7.lock'

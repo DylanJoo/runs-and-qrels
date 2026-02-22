@@ -15,8 +15,7 @@ source /ivi/ilps/personal/dju/miniconda3/etc/profile.d/conda.sh
 conda activate inference
 
 model_dir=naver/splade-v3
-corpus_name=beir-corpus
-output_dir=${HOME}/indices/${corpus_name}/${model_dir##*/}
+output_dir=${HOME}/indices/beir-corpus/${model_dir##*/}
 mkdir -p $output_dir
 
 DATASETS=(

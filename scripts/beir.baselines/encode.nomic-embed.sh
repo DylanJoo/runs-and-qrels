@@ -6,7 +6,7 @@
 #SBATCH --gres=gpu:nvidia_rtx_a6000:1
 #SBATCH --ntasks-per-node=1        
 #SBATCH --nodes=1                
-#SBATCH --array=11,12
+#SBATCH --array0-12
 #SBATCH --mem=40G
 #SBATCH --time=1-00:00:00
 
@@ -16,7 +16,9 @@ initconda
 conda activate inference
 
 model_dir=nomic-ai/modernbert-embed-base
-output_dir=${HOME}/indices/beir-corpus/${model_dir##*/}
+# output_dir=${HOME}/indices/beir-corpus/${model_dir##*/}
+output_dir=${HOME}/scratch/${model_dir##*/}
+export HF_HOME=${HOME}/scratch/hf
 mkdir -p $output_dir
 
 DATASETS=(

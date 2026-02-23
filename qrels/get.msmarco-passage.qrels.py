@@ -14,7 +14,7 @@ def save_qrel(benchmark: str, dataset_name: str, path: Optional[str] = None):
     njudge = 0
     nqueries = set()
     dataset_name = dataset_name.split("/")[0]
-    with open(os.path.join(path, f"qrels.beir.{dataset_name}.txt"), "w") as f:
+    with open(os.path.join(path, f"qrels.msmarco-passage.{dataset_name}.txt"), "w") as f:
         for qrel in dataset.qrels_iter():
             f.write(f"{qrel.query_id} 0 {qrel.doc_id} {qrel.relevance}\n")
             njudge += 1

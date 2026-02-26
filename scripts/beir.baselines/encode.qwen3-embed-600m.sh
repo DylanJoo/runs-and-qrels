@@ -13,7 +13,7 @@
 # ENV
 source ${HOME}/.bashrc
 initconda
-conda activate inference 
+conda activate inference
 
 model_dir=Qwen/Qwen3-Embedding-0.6B
 output_dir=${HOME}/indices/beir-corpus/${model_dir##*/}

@@ -1,22 +1,23 @@
 #!/bin/bash -l
-#SBATCH --job-name=lsr
-#SBATCH --output=logs/lsr.out.%a
-#SBATCH --error=logs/lsr.err.%a
+#SBATCH --job-name=colbert
+#SBATCH --output=logs/colbert.out.%a
+#SBATCH --error=logs/colbert.err.%a
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:nvidia_rtx_a6000:1
-#SBATCH --ntasks-per-node=1        
-#SBATCH --nodes=1                
-#SBATCH --array=0-12%4
+#SBATCH --ntasks-per-node=1
+#SBATCH --nodes=1
+#SBATCH --array=0-12%3
 #SBATCH --mem=32G
 #SBATCH --time=1-00:00:00
 
 # ENV
 source /ivi/ilps/personal/dju/miniconda3/etc/profile.d/conda.sh
-conda activate inference
+conda activate ragatouille
 
-model_dir=naver/splade-v3
-corpus_name=beir-corpus
-output_dir=${HOME}/indices/${corpus_name}/${model_dir##*/}
+model_dir=answerdotai/answerai-colbert-small-v1
+output_dir=${HOME}/indices/beir-corpus/${model_dir##*/}
+output_dir=${HOME}/scratch/beir-corpus/${model_dir##*/}
+export HF_HOME=${HOME}/scratch/hf
 mkdir -p $output_dir
 
 DATASETS=(
@@ -36,12 +37,13 @@ DATASETS=(
 )
 DATASET=${DATASETS[$SLURM_ARRAY_TASK_ID]}
 
+cd ${HOME}/tevatron/examples/colbert
 echo Encoding $DATASET corpus
-python -m tevatron.retriever.driver.encode_lsr \
+python index.py \
+    --output_dir=temp \
     --model_name_or_path $model_dir \
     --dataset_name DylanJHJ/beir-corpus \
     --dataset_split $DATASET \
-    --collection_output ${output_dir}/$DATASET/vectors.jsonl \
-    --batch_size 256 \
-    --max_length 512 \
-    --quantization_factor 100
+    --passage_max_len 512 \
+    --per_device_eval_batch_size 3840 \
+    --encode_output_path $output_dir/$DATASET

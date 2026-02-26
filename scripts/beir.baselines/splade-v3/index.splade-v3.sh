@@ -2,20 +2,20 @@
 #SBATCH --job-name=lsr-index
 #SBATCH --output=logs/lsr.out.%a
 #SBATCH --error=logs/lsr.err.%a
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:nvidia_rtx_a6000:1
 #SBATCH --ntasks-per-node=1        
 #SBATCH --nodes=1                
-#SBATCH --array=0-12
-#SBATCH --mem=32G
-#SBATCH --time=1-00:00:00
+#SBATCH --array=0-12%2
+#SBATCH --mem=64G
+#SBATCH --time=10:00:00
 
 # ENV
 source /ivi/ilps/personal/dju/miniconda3/etc/profile.d/conda.sh
-conda activate inference
+conda activate ragatouille
 
 model_dir=naver/splade-v3
 output_dir=${HOME}/indices/beir-corpus/${model_dir##*/}
+output_dir=${HOME}/scratch/${model_dir##*/}
+export HF_HOME=${HOME}/scratch/hf
 mkdir -p $output_dir
 
 DATASETS=(

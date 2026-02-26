@@ -16,9 +16,7 @@ initconda
 conda activate inference
 
 model_dir=nomic-ai/modernbert-embed-base
-# output_dir=${HOME}/indices/beir-corpus/${model_dir##*/}
-output_dir=${HOME}/scratch/${model_dir##*/}
-export HF_HOME=${HOME}/scratch/hf
+output_dir=${HOME}/indices/beir-corpus/${model_dir##*/}
 mkdir -p $output_dir
 
 DATASETS=(
@@ -42,7 +40,7 @@ for SHARD_ID in 0 1;do
     echo Encoding $DATASET corpus $SHARD_ID
     python -m tevatron.retriever.driver.encode \
         --output_dir=temp \
-        --tokenizer_name answerdotai/ModernBERT-base \
+        --tokenizer_name $model_dir \
         --model_name_or_path $model_dir \
         --per_device_eval_batch_size 1280 \
         --pooling mean --bf16 --normalize \

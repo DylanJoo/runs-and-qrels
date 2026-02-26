@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
-#SBATCH --array=1,2
+#SBATCH --array=0-12
 #SBATCH --mem=128G
 #SBATCH --time=2:00:00
 
@@ -32,8 +32,11 @@ DATASETS=(
 DATASET=${DATASETS[$SLURM_ARRAY_TASK_ID]}
 # nomic-ai/modernbert-embed-base
 
+export HF_HOME=${HOME}/scratch/hf
+
 MODEL_DIR=$1
-output_dir=${HOME}/indices/beir-corpus/${MODEL_DIR##*/}
+output_dir=${HOME}/scratch/${MODEL_DIR##*/}
+# output_dir=${HOME}/indices/beir-corpus/${MODEL_DIR##*/}
 python -m tevatron.retriever.driver.search \
     --query_reps $output_dir/query_emb.${DATASET}.pkl \
     --passage_reps "$output_dir/corpus_emb.${DATASET}*pkl" \
@@ -44,6 +47,6 @@ python -m tevatron.retriever.driver.search \
 
 python -m tevatron.utils.format.convert_result_to_trec \
     --input ${DATASET}.run \
-    --output $output_dir/${DATASET}.trec
+    --output $output_dir/${DATASET/_/-}.txt
 
 echo "Finished searching ${DATASET} with model ${MODEL_DIR}"

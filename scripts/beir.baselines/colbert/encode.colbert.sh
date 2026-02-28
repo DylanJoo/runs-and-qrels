@@ -1,18 +1,19 @@
 #!/bin/bash -l
 #SBATCH --job-name=colbert
-#SBATCH --output=logs/colbert.out.%a
-#SBATCH --error=logs/colbert.err.%a
+#SBATCH --output=logs/encode.out.%a
+#SBATCH --error=logs/encode.err.%a
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:nvidia_rtx_a6000:1
+#SBATCH --gres=gpu:nvidia_rtx_a6000:2
 #SBATCH --ntasks-per-node=1
 #SBATCH --nodes=1
-#SBATCH --array=0-12%3
-#SBATCH --mem=32G
+#SBATCH --array=0-12%2
+#SBATCH --mem=96G
 #SBATCH --time=1-00:00:00
 
 # ENV
-source /ivi/ilps/personal/dju/miniconda3/etc/profile.d/conda.sh
-conda activate ragatouille
+source ${HOME}/.bashrc
+initconda
+conda activate colbert
 
 model_dir=answerdotai/answerai-colbert-small-v1
 output_dir=${HOME}/indices/beir-corpus/${model_dir##*/}
@@ -47,3 +48,17 @@ python index.py \
     --passage_max_len 512 \
     --per_device_eval_batch_size 3840 \
     --encode_output_path $output_dir/$DATASET
+
+# python index.py \
+#     --output_dir=temp \
+#     --model_name_or_path answerdotai/answerai-colbert-small-v1 \
+#     --dataset_name Tevatron/msmarco-passage-corpus-new \
+#     --exclude_title \
+#     --dataset_split train \
+#     --passage_max_len 256 \
+#     --per_device_eval_batch_size 512 \
+#     --encode_output_path $output_dir  \
+#     --nbits 1 \
+#     --dataset_shard_index 0 \
+#     --dataset_number_of_shards 10 \
+#     --step $step

@@ -21,14 +21,14 @@ export HF_HOME=${HOME}/scratch/hf
 mkdir -p $output_dir
 
 cd ${HOME}/tevatron/examples/colbert
-python search.py \
-    --output_dir=temp \
-    --model_name_or_path answerdotai/answerai-colbert-small-v1 \
-    --index_path $output_dir \
-    --dataset_name Tevatron/msmarco-passage-corpus-new \
-    --dataset_split train \
-    --dataset_name Tevatron/msmarco-passage-new \
-    --dataset_split dl19 \
-    --query_max_len 32 \
-    --encode_is_query \
-    --run_path ${HOME}/runs-and-qrels/runs/msmarco-passage/run.msmarco-passage.${MODEL_DIR##*/}.trec-dl-20${year}.txt
+for year in 2019 2020;do
+    python search.py \
+        --output_dir=temp \
+        --model_name_or_path answerdotai/answerai-colbert-small-v1 \
+        --encode_output_path $output_dir  \
+        --dataset_name DylanJHJ/msmarco-passage-trec \
+        --dataset_split  msmarco_passage.trec_dl_${year} \
+        --query_max_len 32 \
+        --encode_is_query \
+        --run_path ${HOME}/runs-and-qrels/runs/msmarco-passage/run.msmarco-passage.colbert-small.trec-dl-${year}.txt
+done

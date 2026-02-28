@@ -1,5 +1,5 @@
 # Define the metrics to evaluate
-METRICS="nDCG@10"
+METRICS="nDCG@10,R@100"
 
 # Find all run files recursively (including subdirectories)
 find runs -name '*.txt' -type f | while read -r run_file; do

@@ -15,7 +15,9 @@ Example:
 
 import argparse
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 try:
@@ -28,9 +30,10 @@ except ImportError:
 
 def load_run(run_path):
     """
-    Load a run file in TREC format.
+    Load a run file in TREC format or 3-column format.
     
-    Format: <query_id> Q0 <doc_id> <rank> <score> <run_name>
+    TREC format: <query_id> Q0 <doc_id> <rank> <score> <run_name>
+    3-column format: <query_id> <doc_id> <score>
     
     Returns:
         dict: {query_id: [(doc_id, score), ...]}
@@ -40,10 +43,13 @@ def load_run(run_path):
     with open(run_path, 'r') as f:
         for line in f:
             parts = line.strip().split()
-            if len(parts) < 6:
+            if len(parts) >= 6:
+                query_id, _, doc_id, rank, score, _ = parts[:6]
+            elif len(parts) == 3:
+                query_id, doc_id, score = parts
+            else:
                 skipped += 1
                 continue
-            query_id, _, doc_id, rank, score, _ = parts
             if query_id not in run:
                 run[query_id] = []
             run[query_id].append((doc_id, float(score)))
@@ -125,6 +131,72 @@ def load_rating(rating_path):
     return rating
 
 
+def detect_run_format(run_path):
+    """
+    Detect the format of a run file by inspecting its first non-empty line.
+    
+    Returns:
+        'trec' for standard 6-column TREC format (qid Q0 docid rank score tag)
+        'tsv' for 3-column format (qid docid score), common in ColBERT output
+        'unknown' if format cannot be determined
+    """
+    with open(run_path, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split()
+            if len(parts) >= 6:
+                return 'trec'
+            elif len(parts) == 3:
+                return 'tsv'
+            return 'unknown'
+    return 'unknown'
+
+
+def normalize_run_file(run_path):
+    """
+    Normalize a run file to TREC format if needed.
+    
+    Handles 3-column format (qid docid score) by converting to
+    standard 6-column TREC format (qid Q0 docid rank score run).
+    
+    Args:
+        run_path: Path to the run file
+        
+    Returns:
+        Path to a TREC-formatted run file (original path if already TREC,
+        or a temporary file path if conversion was needed)
+    """
+    fmt = detect_run_format(run_path)
+    if fmt == 'trec':
+        return str(run_path), None
+    
+    if fmt == 'tsv':
+        print(f"  Detected 3-column run format, converting to TREC format...")
+        # Read all entries grouped by query
+        from collections import defaultdict
+        query_entries = defaultdict(list)
+        with open(run_path, 'r') as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) != 3:
+                    continue
+                qid, docid, score = parts
+                query_entries[qid].append((docid, float(score)))
+        
+        # Write sorted by score descending with proper ranks
+        tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
+        for qid, entries in query_entries.items():
+            entries.sort(key=lambda x: x[1], reverse=True)
+            for rank, (docid, score) in enumerate(entries, 1):
+                tmp.write(f"{qid} Q0 {docid} {rank} {score} run\n")
+        tmp.close()
+        return tmp.name, tmp.name
+    
+    return str(run_path), None
+
+
 def calculate_metrics_with_ir_measures(run_path, qrel_path, metrics):
     """
     Calculate evaluation metrics using ir-measures library.
@@ -152,15 +224,23 @@ def calculate_metrics_with_ir_measures(run_path, qrel_path, metrics):
               "See https://ir-measur.es/ for documentation.", file=sys.stderr)
         return {}
     
-    # Load run and qrel using ir-measures
-    qrels = ir_measures.read_trec_qrels(str(qrel_path))
-    run = ir_measures.read_trec_run(str(run_path))
+    # Normalize run file format if needed (e.g., 3-column ColBERT format)
+    normalized_path, tmp_path = normalize_run_file(run_path)
     
-    # Calculate metrics
-    results = ir_measures.calc_aggregate(parsed_metrics, qrels, run)
-    
-    # Convert to simple dict with string keys
-    return {str(k): v for k, v in results.items()}
+    try:
+        # Load run and qrel using ir-measures
+        qrels = ir_measures.read_trec_qrels(str(qrel_path))
+        run = ir_measures.read_trec_run(normalized_path)
+        
+        # Calculate metrics
+        results = ir_measures.calc_aggregate(parsed_metrics, qrels, run)
+        
+        # Convert to simple dict with string keys
+        return {str(k): v for k, v in results.items()}
+    finally:
+        # Clean up temporary file if one was created
+        if tmp_path:
+            os.unlink(tmp_path)
 
 
 def calculate_metrics(run, qrel, metrics, rating=None):

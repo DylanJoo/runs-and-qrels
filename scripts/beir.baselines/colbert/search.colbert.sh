@@ -1,13 +1,13 @@
 #!/bin/bash -l
 #SBATCH --job-name=colbert
-#SBATCH --output=logs/encode.out.%a
-#SBATCH --error=logs/encode.err.%a
+#SBATCH --output=logs/search.out.%a
+#SBATCH --error=logs/search.err.%a
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:nvidia_rtx_a6000:2
 #SBATCH --ntasks-per-node=1
-#SBATCH --nodes=1
-#SBATCH --array=0-12%2
-#SBATCH --mem=64G
+#SBATCH --gres=gpu:nvidia_rtx_a6000:1
+#SBATCH --nodes=1                
+#SBATCH --array=0-12%1
+#SBATCH --mem=200G
 #SBATCH --time=1-00:00:00
 
 # ENV
@@ -19,6 +19,7 @@ model_dir=answerdotai/answerai-colbert-small-v1
 output_dir=${HOME}/indices/beir-corpus/${model_dir##*/}
 output_dir=${HOME}/scratch/beir-corpus/${model_dir##*/}
 export HF_HOME=${HOME}/scratch/hf
+export COLLBERT_LOAD_TORCH_EXTENSION_VERBOSE=True
 mkdir -p $output_dir
 
 DATASETS=(
@@ -39,18 +40,14 @@ DATASETS=(
 DATASET=${DATASETS[$SLURM_ARRAY_TASK_ID]}
 
 cd ${HOME}/tevatron/examples/colbert
-echo Encoding $DATASET corpus
-for step in prepare encode finalize;do
-    echo Start $step
-    python index.py \
-        --output_dir=temp \
-        --model_name_or_path $model_dir \
-        --dataset_name DylanJHJ/beir-corpus \
-        --dataset_split $DATASET \
-        --passage_max_len 256 \
-        --per_device_eval_batch_size 256 \
-        --encode_output_path $output_dir/$DATASET \
-        --nbits 1 \
-        --step $step 
-    echo End $step
-done
+subset=${DATASET/beir./}
+python search.py \
+    --output_dir=temp \
+    --model_name_or_path answerdotai/answerai-colbert-small-v1 \
+    --encode_output_path $output_dir/$DATASET \
+    --dataset_name DylanJHJ/beir-subset \
+    --dataset_split $DATASET \
+    --per_device_eval_batch_size 4 \
+    --query_max_len 64 \
+    --encode_is_query \
+    --run_path ${HOME}/runs-and-qrels/runs/beir/run.beir.colbert-small.${subset/_/-}.txt

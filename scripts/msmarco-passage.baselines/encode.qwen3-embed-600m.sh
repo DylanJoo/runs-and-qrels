@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH --job-name=qwen3
-#SBATCH --output=logs/qwen3.out.%a
-#SBATCH --error=logs/qwen3.err.%a
+#SBATCH --output=logs/qwen3.out
+#SBATCH --error=logs/qwen3.err
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:nvidia_rtx_a6000:1
 #SBATCH --ntasks-per-node=1        
@@ -56,7 +56,7 @@ if [[ $SLURM_ARRAY_TASK_ID -eq 0 ]]; then
             --dataset_name Tevatron/msmarco-passage-new \
             --dataset_split $SPLIT \
             --encode_output_path $output_dir/query_emb.${SPLIT}.pkl \
-            --query_max_len 150 \
+            --query_max_len 48 \
             --encode_is_query
     done
 fi

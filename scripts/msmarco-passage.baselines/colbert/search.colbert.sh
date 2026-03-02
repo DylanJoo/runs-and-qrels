@@ -3,7 +3,7 @@
 #SBATCH --output=logs/search.out
 #SBATCH --error=logs/search.err
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:nvidia_titan_v:1
+#SBATCH --gres=gpu:nvidia_rtx_a6000:1
 #SBATCH --ntasks-per-node=1
 #SBATCH --nodes=1                
 #SBATCH --mem=32G

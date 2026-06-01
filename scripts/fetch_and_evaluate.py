@@ -19,6 +19,7 @@ import json
 import os
 import sys
 import tempfile
+import traceback
 from pathlib import Path
 
 import requests
@@ -63,6 +64,30 @@ def download_object(key, token=None):
         )
         return None
     return resp.text
+
+
+def validate_trec_run(content, key):
+    """
+    Validate and clean TREC run file content.
+    Expected format per line: qid Q0 docid rank score runid  (6 fields)
+    Returns cleaned content and a list of warning strings.
+    """
+    warnings = []
+    clean_lines = []
+    for i, line in enumerate(content.splitlines(), 1):
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) == 6:
+            clean_lines.append(line)
+        elif len(parts) == 5:
+            # Missing run_id — append a placeholder
+            warnings.append(f"  line {i}: only 5 fields, appending dummy run_id: {line[:80]}")
+            clean_lines.append(line + " run")
+        else:
+            warnings.append(f"  line {i}: expected 6 fields, got {len(parts)}, skipping: {line[:80]}")
+    return "\n".join(clean_lines) + "\n", warnings
 
 
 def evaluate_run(run_path, qrel_path, parsed_metrics):
@@ -165,8 +190,12 @@ def main():
             errors += 1
             continue
 
+        clean_content, run_warnings = validate_trec_run(content, key)
+        for w in run_warnings:
+            print(f"  Warning [{key}]: {w}", file=sys.stderr)
+
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
-            tmp.write(content)
+            tmp.write(clean_content)
             tmp_path = tmp.name
 
         try:
@@ -176,7 +205,8 @@ def main():
             print(f"  -> {output_json}: {results}")
             evaluated += 1
         except Exception as e:
-            print(f"  Error evaluating {key}: {e}", file=sys.stderr)
+            print(f"  Error evaluating {key}: {type(e).__name__}: {e}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
             errors += 1
         finally:
             os.unlink(tmp_path)

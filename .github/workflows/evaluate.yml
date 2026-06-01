@@ -17,6 +17,8 @@ on:
       - 'scripts/fetch_and_evaluate.py'
       - 'scripts/evaluate.py'
       - 'scripts/generate_results.py'
+  schedule:
+    - cron: '0 2 * * *'
   workflow_dispatch:
 
 permissions:

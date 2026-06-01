@@ -52,42 +52,37 @@ def list_bucket_objects(prefix="runs/", token=None):
     ]
 
 
-def download_object(key, token=None):
-    """Download an object from the HF bucket and return its text content."""
+def download_to_temp(key, token=None):
+    """Stream a run file from HF bucket into a temp file, validating on the fly.
+    Returns (tmp_path, warnings) or (None, []) on error."""
     url = f"{HF_BUCKET_BASE}/resolve/{key}"
     headers = {"Authorization": f"Bearer {token}"} if token else {}
-    resp = requests.get(url, headers=headers)
+    resp = requests.get(url, headers=headers, stream=True)
     if not resp.ok:
         print(
             f"Error downloading {key} (HTTP {resp.status_code}): {resp.text}",
             file=sys.stderr,
         )
-        return None
-    return resp.text
+        return None, []
 
-
-def validate_trec_run(content, key):
-    """
-    Validate and clean TREC run file content.
-    Expected format per line: qid Q0 docid rank score runid  (6 fields)
-    Returns cleaned content and a list of warning strings.
-    """
     warnings = []
-    clean_lines = []
-    for i, line in enumerate(content.splitlines(), 1):
-        line = line.strip()
-        if not line:
-            continue
-        parts = line.split()
-        if len(parts) == 6:
-            clean_lines.append(line)
-        elif len(parts) == 5:
-            # Missing run_id — append a placeholder
-            warnings.append(f"  line {i}: only 5 fields, appending dummy run_id: {line[:80]}")
-            clean_lines.append(line + " run")
-        else:
-            warnings.append(f"  line {i}: expected 6 fields, got {len(parts)}, skipping: {line[:80]}")
-    return "\n".join(clean_lines) + "\n", warnings
+    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
+    try:
+        for i, line in enumerate(resp.iter_lines(decode_unicode=True), 1):
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split()
+            if len(parts) == 6:
+                tmp.write(line + "\n")
+            elif len(parts) == 5:
+                warnings.append(f"  line {i}: only 5 fields, appending dummy run_id: {line[:80]}")
+                tmp.write(line + " run\n")
+            else:
+                warnings.append(f"  line {i}: expected 6 fields, got {len(parts)}, skipping: {line[:80]}")
+    finally:
+        tmp.close()
+    return tmp.name, warnings
 
 
 def evaluate_run(run_path, qrel_path, parsed_metrics):
@@ -185,18 +180,13 @@ def main():
             continue
 
         print(f"Evaluating: {key}")
-        content = download_object(key, token=args.token)
-        if content is None:
+        tmp_path, run_warnings = download_to_temp(key, token=args.token)
+        if tmp_path is None:
             errors += 1
             continue
 
-        clean_content, run_warnings = validate_trec_run(content, key)
         for w in run_warnings:
             print(f"  Warning [{key}]: {w}", file=sys.stderr)
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
-            tmp.write(clean_content)
-            tmp_path = tmp.name
 
         try:
             results = evaluate_run(tmp_path, qrel_file, parsed_metrics)

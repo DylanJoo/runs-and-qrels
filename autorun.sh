@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-# python3 scripts/fetch_and_evaluate.py
+python3 scripts/fetch_and_evaluate.py
 python3 scripts/generate_results.py
 
 echo "Done. See RESULTS.md for a summary."

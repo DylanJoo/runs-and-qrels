@@ -9,13 +9,30 @@ from collections import defaultdict
 from pathlib import Path
 
 
+def is_reranking(model: str) -> bool:
+    return "-rerank-" in model
+
+
+def make_table(models: list, datasets: list, model_scores: dict) -> list:
+    lines = []
+    lines.append("| Model | " + " | ".join(datasets) + " |")
+    lines.append("|:---|" + "|".join([":---:" for _ in datasets]) + "|")
+    for model in models:
+        row = [model]
+        for dataset in datasets:
+            score = model_scores[model].get(dataset)
+            row.append(f"{score:.4f}" if score is not None else "-")
+        lines.append("| " + " | ".join(row) + " |")
+    return lines
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate RESULTS.md from temp.tsv")
     parser.add_argument("--input", default="temp.tsv")
     parser.add_argument("--output", default="RESULTS.md")
     args = parser.parse_args()
 
-    # {benchmark: {dataset: {model: score}}}
+    # {benchmark: {model: {dataset: score}}}
     data = defaultdict(lambda: defaultdict(dict))
 
     with open(args.input) as f:
@@ -28,7 +45,7 @@ def main():
                 print(f"Skipping malformed line: {line!r}")
                 continue
             benchmark, model, dataset, score = parts
-            data[benchmark][dataset][model] = float(score)
+            data[benchmark][model][dataset] = float(score)
 
     lines = []
     lines.append("# Evaluation Results")
@@ -40,22 +57,32 @@ def main():
 
     for benchmark in sorted(data.keys()):
         benchmark_data = data[benchmark]
-        datasets = sorted(benchmark_data.keys())
-        models = sorted({m for d in benchmark_data.values() for m in d.keys()})
+        all_datasets = sorted({d for m in benchmark_data.values() for d in m.keys()})
 
-        lines.append(f"## {benchmark.upper()}")
-        lines.append("")
-        lines.append("| Dataset | " + " | ".join(models) + " |")
-        lines.append("|:---|" + "|".join([":---:" for _ in models]) + "|")
+        retrieval_models = sorted(m for m in benchmark_data if not is_reranking(m))
+        reranking_models = sorted(m for m in benchmark_data if is_reranking(m))
 
-        for dataset in datasets:
-            row = [dataset]
-            for model in models:
-                score = benchmark_data[dataset].get(model)
-                row.append(f"{score:.4f}" if score is not None else "-")
-            lines.append("| " + " | ".join(row) + " |")
+        retrieval_datasets = sorted(
+            {d for m in retrieval_models for d in benchmark_data[m]}
+        )
+        reranking_datasets = sorted(
+            {d for m in reranking_models for d in benchmark_data[m]}
+        )
 
         lines.append("")
+
+        if retrieval_models:
+            lines.append("### Retrieval")
+            lines.append("")
+            lines.extend(make_table(retrieval_models, retrieval_datasets, benchmark_data))
+            lines.append("")
+
+        if reranking_models:
+            lines.append("### Reranking")
+            lines.append("")
+            lines.extend(make_table(reranking_models, reranking_datasets, benchmark_data))
+            lines.append("")
+
         lines.append("---")
         lines.append("")
 
@@ -64,8 +91,10 @@ def main():
 
     print(f"Generated {args.output}")
     for benchmark, bdata in sorted(data.items()):
-        models = {m for d in bdata.values() for m in d.keys()}
-        print(f"  {benchmark}: {len(bdata)} datasets, {len(models)} models")
+        r = sum(1 for m in bdata if not is_reranking(m))
+        rr = sum(1 for m in bdata if is_reranking(m))
+        datasets = {d for m in bdata.values() for d in m}
+        print(f"  {benchmark}: {len(datasets)} datasets, {r} retrieval + {rr} reranking models")
 
 
 if __name__ == "__main__":

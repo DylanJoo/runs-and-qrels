@@ -28,7 +28,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install ir-measures requests huggingface_hub
+        run: pip install ir-measures ir-datasets requests huggingface_hub
 
       - name: Fetch runs from HF bucket and evaluate
         env:

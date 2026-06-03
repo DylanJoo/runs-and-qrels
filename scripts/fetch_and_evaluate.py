@@ -6,13 +6,7 @@ The HF bucket stores run files mirroring the local structure:
 """
 
 import argparse
-import json
-import os
-import sys
-import tempfile
-import traceback
 from pathlib import Path
-import requests
 
 from huggingface_hub import list_bucket_tree, download_bucket_files
 import ir_datasets
@@ -44,7 +38,7 @@ def main():
         model = run_parts[2]
         dataset = run_parts[3]
         qrels_path = f"qrels/{benchmark}/qrels.{benchmark}.{dataset}.txt"
-        jobs.append((run_path, qrels_path, model, dataset))
+        jobs.append((run_path, qrels_path, benchmark, model, dataset))
 
     temp_dir = Path("./temp")
     temp_dir.mkdir(exist_ok=True)
@@ -53,7 +47,7 @@ def main():
     run_local_map = {}
     qrels_local_map = {}
 
-    for run_path, qrels_path, model, dataset in jobs:
+    for run_path, qrels_path, benchmark, model, dataset in jobs:
         if run_path not in run_local_map:
             local = temp_dir / Path(run_path).name
             run_local_map[run_path] = local
@@ -69,7 +63,7 @@ def main():
 
     evaluated = 0
     with open(args.result_file, "w") as f:
-        for run_path, qrels_path, model, dataset in jobs:
+        for run_path, qrels_path, benchmark, model, dataset in jobs:
             try:
                 run = ir_measures.read_trec_run(str(run_local_map[run_path]))
                 qrels = ir_measures.read_trec_qrels(str(qrels_local_map[qrels_path]))

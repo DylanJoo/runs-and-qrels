@@ -44,6 +44,6 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add results/ RESULTS.md
+          git add RESULTS.md
           git diff --staged --quiet || git commit -m "Update evaluation results [skip ci]"
           git push
